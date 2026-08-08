@@ -147,7 +147,7 @@ def main():
         print(f"{s.get('name')} -> {cur}")
         if cur is None:
             continue
-        if cur is True and old is False:   # 未开播 → 直播中，才算新开播
+        if cur is True and old is not True:   # 未开播 → 直播中，才算新开播
             newly.append(s)
         state[key] = cur
 
