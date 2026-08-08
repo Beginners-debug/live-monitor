@@ -4,6 +4,27 @@ on:
   schedule:
     - cron: "*/1 * * * *"
   workflow_dispatch:
+    inputs:
+      mode:
+        description: '操作类型'
+        type: choice
+        options: ['check', 'test', 'add', 'delete', 'list']
+        default: 'check'
+      platform:
+        description: '平台: huya / bilibili / douyin（add 必填，delete 可选）'
+        required: false
+        default: ''
+      room_id:
+        description: '房间号（add/delete 必填）'
+        required: false
+        default: ''
+      name:
+        description: '昵称（可选，不填默认用房间号）'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
 
 jobs:
   check:
@@ -26,14 +47,29 @@ jobs:
           restore-keys: |
             live-state-
 
-      - name: 运行监控
+      - name: 执行操作
         env:
-          STREAMERS: ${{ secrets.STREAMERS }}
+          MODE: ${{ github.event.inputs.mode }}
+          PLATFORM: ${{ github.event.inputs.platform }}
+          ROOM_ID: ${{ github.event.inputs.room_id }}
+          NAME: ${{ github.event.inputs.name }}
           QQ_EMAIL_SENDER: ${{ secrets.QQ_EMAIL_SENDER }}
           QQ_EMAIL_AUTH: ${{ secrets.QQ_EMAIL_AUTH }}
-          QQ_EMAIL_RECEIVER: ${{ secrets.QQ_EMAIL_RECEIVER }}
-          TEST: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
-        run: python monitor.py
+          TEST: ${{ github.event.inputs.mode == 'test' && '1' || '0' }}
+        run: |
+          python manage.py
+          python monitor.py
+
+      - name: 自动提交主播列表
+        if: github.event_name == 'workflow_dispatch' && (github.event.inputs.mode == 'add' || github.event.inputs.mode == 'delete')
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add streamers.json
+          if ! git diff --staged --quiet; then
+            git commit -m "update streamers"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
 
       - name: 保存状态
         if: always()
