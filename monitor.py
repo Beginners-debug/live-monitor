@@ -132,7 +132,7 @@ def main():
     if os.environ.get("TEST") == "1":
         notify("✅ 测试通知", "GitHub Actions 主播监控已部署成功，通知链路正常。")
 
-    streamers = json.loads(os.environ.get("STREAMERS", "[]"))
+    streamers = load_streamers()
     if not streamers:
         print("未配置 STREAMERS")
         return
@@ -162,6 +162,21 @@ def main():
         lines = [f"【{s['platform']}】{s['name']}\n{base.get(s['platform'], '')}{s['room_id']}"
                  for s in newly]
         notify(title, "\n\n".join(lines))
+
+def load_streamers():
+    """优先读仓库里的 streamers.json，没有才读 STREAMERS Secret"""
+    p = os.path.join(BASE_DIR, "streamers.json")
+    if os.path.exists(p):
+        try:
+            with open(p, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            print("streamers.json 读取失败:", e)
+    try:
+        return json.loads(os.environ.get("STREAMERS", "[]"))
+    except Exception:
+        print("STREAMERS 格式错误")
+        return []
 
 
 if __name__ == "__main__":
